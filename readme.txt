@@ -1,0 +1,28 @@
+﻿GoLSplit is a LiveSplit (livesplit.org) component for Lara Croft and the Guardian of Light.
+
+Features:
+
+Automatically reset/start on the first level.
+Automatically split when finishing a level.
+Displays combined game time.
+
+Requirements:
+
+Lara Croft and the Guardian of Light v1.03 (Latest)
+LiveSplit 1.3+
+
+Install:
+
+Extract LiveSplit.GoLSplit.dll to your LiveSplit\Components folder. Restart
+LiveSplit. Add it in LiveSplit's Layout Editor.
+
+Notes:
+
+This game's in-game timer has some issues like not pausing when on death
+screens. It's not that big of a deal, it will just punish you for dying.
+
+
+@fatalis_
+twitch.tv/fatalis_
+Fatalis @ irc2.speedrunslive.com IRC
+fatalis.twitch@gmail.com

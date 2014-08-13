@@ -9,7 +9,7 @@ Displays combined game time.
 Requirements:
 
 Lara Croft and the Guardian of Light v1.03 (Latest)
-LiveSplit 1.3+
+LiveSplit 1.4+
 
 Install:
 
@@ -22,6 +22,8 @@ This game's in-game timer has some issues like not pausing when on death
 screens. It's not that big of a deal, it will just punish you for dying.
 
 You can view each level's game time if you right click -> "Control".
+
+Currently doesn't support restarting level (other than ToL) during run.
 
 
 @fatalis_

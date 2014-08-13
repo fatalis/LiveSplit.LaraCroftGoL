@@ -7,20 +7,24 @@ namespace LiveSplit.GoLSplit
 {
     public class GoLSplitFactory : IComponentFactory
     {
-        private GoLSplitComponent _instance;
-
         public string ComponentName
         {
             get { return "Lara Croft: GoL"; }
         }
 
+        public string Description
+        {
+            get { return "Game Time / Auto-splitting for Lara Croft and the Guardian of Light."; }
+        }
+
+        public ComponentCategory Category
+        {
+            get { return ComponentCategory.Control; }
+        }
+
         public IComponent Create(LiveSplitState state)
         {
-            // TODO: in LiveSplit 1.4, components will be IDisposable
-            // this assumes the passed state is always the same one, until then
-            return _instance ?? (_instance = new GoLSplitComponent(state));
-
-            // return new GoLSplitComponent(state);
+            return new GoLSplitComponent(state);
         }
 
         public string UpdateName

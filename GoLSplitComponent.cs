@@ -1,11 +1,11 @@
-﻿using System.Globalization;
+﻿using System.Drawing;
+using System.Globalization;
 using LiveSplit.Model;
 using LiveSplit.TimeFormatters;
 using LiveSplit.UI.Components;
 using LiveSplit.UI;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Xml;
 using System.Windows.Forms;
 
@@ -23,7 +23,6 @@ namespace LiveSplit.GoLSplit
 
         private TimerModel _timer;
         private GameMemory _gameMemory;
-        private LiveSplitState _state;
         private uint _totalGameTime;
         private GraphicsCache _cache;
         private MapTimesForm _mapTimesForm;
@@ -39,12 +38,11 @@ namespace LiveSplit.GoLSplit
                     _mapTimesForm.Show();
             });
 
-            this.InternalComponent = new InfoTimeComponent(null, null, new ThousandthsTimeFormatter());
+            this.InternalComponent = new InfoTimeComponent(null, null, new RegularTimeFormatter(TimeAccuracy.Hundredths));
 
             _mapTimesForm = new MapTimesForm();
             _cache = new GraphicsCache();
             _timer = new TimerModel { CurrentState = state };
-            _state = state;
 
             _gameMemory = new GameMemory();
             _gameMemory.OnFirstLevelLoading += gameMemory_OnFirstLevelLoading;
@@ -53,18 +51,26 @@ namespace LiveSplit.GoLSplit
             _gameMemory.StartReading();
         }
 
-        ~GoLSplitComponent()
+        public void Dispose()
         {
-            // TODO: in LiveSplit 1.4, components will be IDisposable
-            //_gameMemory.Stop();
+            if (_gameMemory != null)
+                _gameMemory.Stop();
         }
 
         public void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode)
         {
-            this.InternalComponent.TimeValue = TimeSpan.FromMilliseconds(_totalGameTime + _gameMemory.GameTime);
+            state.IsGameTimePaused = true; // prevent flicker, doesn't actually pause anything.
+            state.SetGameTime(TimeSpan.FromMilliseconds(_totalGameTime + _gameMemory.GameTime));
+
+            this.InternalComponent.TimeValue =
+                state.CurrentTime[state.CurrentTimingMethod == TimingMethod.GameTime
+                    ? TimingMethod.RealTime : TimingMethod.GameTime];
+            this.InternalComponent.InformationName = state.CurrentTimingMethod == TimingMethod.GameTime
+                ? "Real Time" : "Game Time";
 
             _cache.Restart();
             _cache["TimeValue"] = this.InternalComponent.ValueLabel.Text;
+            _cache["TimingMethod"] = state.CurrentTimingMethod;
             if (invalidator != null && _cache.HasChanged)
                 invalidator.Invalidate(0f, 0f, width, height);
         }
@@ -83,7 +89,6 @@ namespace LiveSplit.GoLSplit
 
         void PrepareDraw(LiveSplitState state)
         {
-            this.InternalComponent.NameLabel.Text = "Game Time";
             this.InternalComponent.NameLabel.ForeColor = state.LayoutSettings.TextColor;
             this.InternalComponent.ValueLabel.ForeColor = state.LayoutSettings.TextColor;
             this.InternalComponent.NameLabel.HasShadow = this.InternalComponent.ValueLabel.HasShadow = state.LayoutSettings.DropShadows;
@@ -112,14 +117,14 @@ namespace LiveSplit.GoLSplit
         public Control GetSettingsControl(LayoutMode mode) { return null; }
         public void SetSettings(XmlNode settings) { }
         public void RenameComparison(string oldName, string newName) { }
-        public float VerticalHeight { get { return this.InternalComponent.VerticalHeight; } }
-        public float MinimumWidth { get { return this.InternalComponent.MinimumWidth; } }
+        public float VerticalHeight  { get { return this.InternalComponent.VerticalHeight; } }
+        public float MinimumWidth    { get { return this.InternalComponent.MinimumWidth; } }
         public float HorizontalWidth { get { return this.InternalComponent.HorizontalWidth; } }
-        public float MinimumHeight { get { return this.InternalComponent.MinimumHeight; } }
-        public float PaddingLeft { get { return this.InternalComponent.PaddingLeft; } }
-        public float PaddingRight { get { return this.InternalComponent.PaddingRight; } }
-        public float PaddingTop { get { return this.InternalComponent.PaddingTop; } }
-        public float PaddingBottom { get { return this.InternalComponent.PaddingBottom; } }
+        public float MinimumHeight   { get { return this.InternalComponent.MinimumHeight; } }
+        public float PaddingLeft     { get { return this.InternalComponent.PaddingLeft; } }
+        public float PaddingRight    { get { return this.InternalComponent.PaddingRight; } }
+        public float PaddingTop      { get { return this.InternalComponent.PaddingTop; } }
+        public float PaddingBottom   { get { return this.InternalComponent.PaddingBottom; } }
     }
 
     class ThousandthsTimeFormatter : ITimeFormatter

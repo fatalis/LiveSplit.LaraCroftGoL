@@ -13,8 +13,8 @@ LiveSplit 1.4+
 
 Install:
 
-Extract LiveSplit.GoLSplit.dll to your LiveSplit\Components folder. Restart
-LiveSplit. Add it in LiveSplit's Layout Editor.
+Enter "Lara Croft and the Guardian of Light" in LiveSplit's splits editor.
+Click activate.
 
 Notes:
 

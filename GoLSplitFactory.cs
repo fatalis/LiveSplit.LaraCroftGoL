@@ -1,7 +1,10 @@
 ﻿using System.Reflection;
+using LiveSplit.GoLSplit;
 using LiveSplit.UI.Components;
 using System;
 using LiveSplit.Model;
+
+[assembly: ComponentFactory(typeof(GoLSplitFactory))]
 
 namespace LiveSplit.GoLSplit
 {
@@ -34,7 +37,7 @@ namespace LiveSplit.GoLSplit
 
         public string UpdateURL
         {
-            get { return "http://fatalis.hive.ai/livesplit/update/"; }
+            get { return "http://fatalis.pw/livesplit/update/"; }
         }
 
         public Version Version

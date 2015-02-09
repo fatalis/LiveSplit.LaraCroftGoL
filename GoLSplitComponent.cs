@@ -24,8 +24,10 @@ namespace LiveSplit.GoLSplit
         private TimerModel _timer;
         private GameMemory _gameMemory;
         private uint _totalGameTime;
+        private uint _levelRestartTime;
         private GraphicsCache _cache;
         private MapTimesForm _mapTimesForm;
+        private List<string> _completedLevels;
 
         public GoLSplitComponent(LiveSplitState state)
         {
@@ -40,6 +42,7 @@ namespace LiveSplit.GoLSplit
 
             this.InternalComponent = new InfoTimeComponent(null, null, new RegularTimeFormatter(TimeAccuracy.Hundredths));
 
+            _completedLevels = new List<string>();
             _mapTimesForm = new MapTimesForm();
             _cache = new GraphicsCache();
             _timer = new TimerModel { CurrentState = state };
@@ -48,6 +51,7 @@ namespace LiveSplit.GoLSplit
             _gameMemory.OnFirstLevelLoading += gameMemory_OnFirstLevelLoading;
             _gameMemory.OnFirstLevelStarted += gameMemory_OnFirstLevelStarted;
             _gameMemory.OnLevelFinished += gameMemory_OnLevelFinished;
+            _gameMemory.OnLevelRestarted += gameMemory_OnLevelRestarted;
             _gameMemory.StartReading();
         }
 
@@ -96,8 +100,14 @@ namespace LiveSplit.GoLSplit
 
         void gameMemory_OnLevelFinished(object sender, string level, uint time)
         {
-            _mapTimesForm.AddMapTime(level, new ThousandthsTimeFormatter().Format(TimeSpan.FromMilliseconds(time)));
+            // hack to hopefully fix an issue one person has where this is called many times on the level end screen
+            if (_completedLevels.Contains(level))
+                return;
+
+            _completedLevels.Add(level);
+            _mapTimesForm.AddMapTime(level, new ThousandthsTimeFormatter().Format(TimeSpan.FromMilliseconds(time + _levelRestartTime)));
             _totalGameTime += time;
+            _levelRestartTime = 0;
             _timer.Split();
         }
 
@@ -109,8 +119,16 @@ namespace LiveSplit.GoLSplit
         void gameMemory_OnFirstLevelLoading(object sender, EventArgs e)
         {
             _totalGameTime = 0;
+            _levelRestartTime = 0;
             _timer.Reset();
             _mapTimesForm.Reset();
+            _completedLevels.Clear();
+        }
+
+        void gameMemory_OnLevelRestarted(object sender, uint time)
+        {
+            _totalGameTime += time;
+            _levelRestartTime += time;
         }
 
         public XmlNode GetSettings(XmlDocument document) { return document.CreateElement("Settings"); }

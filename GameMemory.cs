@@ -13,7 +13,9 @@ namespace LiveSplit.GoLSplit
     class GameMemory
     {
         public delegate void LevelFinishedEventHandler(object sender, string level, uint time);
+        public delegate void LevelRestartedEventHandler(object sender, uint time);
         public event LevelFinishedEventHandler OnLevelFinished;
+        public event LevelRestartedEventHandler OnLevelRestarted;
         public event EventHandler OnFirstLevelStarted;
         public event EventHandler OnFirstLevelLoading;
 
@@ -129,12 +131,22 @@ namespace LiveSplit.GoLSplit
                                     this.OnLevelFinished(this, level, gameTime);
                             }, null);
                         }
-                        else if (gameTime == 0 && _prevGameTime > 0 && currentMap == "alc_1_it_beginning")
+                        else if (gameTime == 0 && _prevGameTime > 0)
                         {
-                            _uiThread.Send(s => {
-                                if (this.OnFirstLevelLoading != null)
-                                    this.OnFirstLevelLoading(this, EventArgs.Empty);
-                            }, null);
+                            if (currentMap == "alc_1_it_beginning")
+                            {
+                                _uiThread.Send(s => {
+                                    if (this.OnFirstLevelLoading != null)
+                                        this.OnFirstLevelLoading(this, EventArgs.Empty);
+                                }, null);
+                            }
+                            else
+                            {
+                                _uiThread.Send(s => {
+                                    if (this.OnLevelRestarted != null)
+                                        this.OnLevelRestarted(this, _prevGameTime);
+                                }, null);
+                            }
                         }
                         else if (_prevGameTime == 0 && gameTime > 0)
                         {

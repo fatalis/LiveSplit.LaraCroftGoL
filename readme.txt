@@ -23,8 +23,6 @@ screens. It's not that big of a deal, it will just punish you for dying.
 
 You can view each level's game time if you right click -> "Control".
 
-Currently doesn't support restarting level (other than ToL) during run.
-
 
 @fatalis_
 twitch.tv/fatalis_

@@ -1,5 +1,4 @@
 ﻿using System.Drawing;
-using System.Globalization;
 using LiveSplit.Model;
 using LiveSplit.TimeFormatters;
 using LiveSplit.UI.Components;
@@ -23,35 +22,23 @@ namespace LiveSplit.GoLSplit
 
         private TimerModel _timer;
         private GameMemory _gameMemory;
-        private uint _totalGameTime;
-        private uint _levelRestartTime;
-        private GraphicsCache _cache;
-        private MapTimesForm _mapTimesForm;
         private List<string> _completedLevels;
 
         public GoLSplitComponent(LiveSplitState state)
         {
             this.ContextMenuControls = new Dictionary<String, Action>();
-            this.ContextMenuControls.Add("GoLSplit: Level Times", () =>
-            {
-                if (_mapTimesForm.Visible)
-                    _mapTimesForm.Hide();
-                else
-                    _mapTimesForm.Show();
-            });
 
             this.InternalComponent = new InfoTimeComponent(null, null, new RegularTimeFormatter(TimeAccuracy.Hundredths));
 
             _completedLevels = new List<string>();
-            _mapTimesForm = new MapTimesForm();
-            _cache = new GraphicsCache();
             _timer = new TimerModel { CurrentState = state };
 
             _gameMemory = new GameMemory();
             _gameMemory.OnFirstLevelLoading += gameMemory_OnFirstLevelLoading;
             _gameMemory.OnFirstLevelStarted += gameMemory_OnFirstLevelStarted;
             _gameMemory.OnLevelFinished += gameMemory_OnLevelFinished;
-            _gameMemory.OnLevelRestarted += gameMemory_OnLevelRestarted;
+            _gameMemory.OnLoadStart += gameMemory_OnLoadStart;
+            _gameMemory.OnLoadFinish += gameMemory_OnLoadFinish;
             _gameMemory.StartReading();
         }
 
@@ -61,53 +48,13 @@ namespace LiveSplit.GoLSplit
                 _gameMemory.Stop();
         }
 
-        public void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode)
-        {
-            state.IsGameTimePaused = true; // prevent flicker, doesn't actually pause anything.
-            state.SetGameTime(TimeSpan.FromMilliseconds(_totalGameTime + _gameMemory.GameTime));
-
-            this.InternalComponent.TimeValue =
-                state.CurrentTime[state.CurrentTimingMethod == TimingMethod.GameTime
-                    ? TimingMethod.RealTime : TimingMethod.GameTime];
-            this.InternalComponent.InformationName = state.CurrentTimingMethod == TimingMethod.GameTime
-                ? "Real Time" : "Game Time";
-
-            _cache.Restart();
-            _cache["TimeValue"] = this.InternalComponent.ValueLabel.Text;
-            _cache["TimingMethod"] = state.CurrentTimingMethod;
-            if (invalidator != null && _cache.HasChanged)
-                invalidator.Invalidate(0f, 0f, width, height);
-        }
-
-        public void DrawVertical(Graphics g, LiveSplitState state, float width, Region region)
-        {
-            this.PrepareDraw(state);
-            this.InternalComponent.DrawVertical(g, state, width, region);
-        }
-
-        public void DrawHorizontal(Graphics g, LiveSplitState state, float height, Region region)
-        {
-            this.PrepareDraw(state);
-            this.InternalComponent.DrawHorizontal(g, state, height, region);
-        }
-
-        void PrepareDraw(LiveSplitState state)
-        {
-            this.InternalComponent.NameLabel.ForeColor = state.LayoutSettings.TextColor;
-            this.InternalComponent.ValueLabel.ForeColor = state.LayoutSettings.TextColor;
-            this.InternalComponent.NameLabel.HasShadow = this.InternalComponent.ValueLabel.HasShadow = state.LayoutSettings.DropShadows;
-        }
-
-        void gameMemory_OnLevelFinished(object sender, string level, uint time)
+        void gameMemory_OnLevelFinished(object sender, string level)
         {
             // hack to hopefully fix an issue one person has where this is called many times on the level end screen
             if (_completedLevels.Contains(level))
                 return;
 
             _completedLevels.Add(level);
-            _mapTimesForm.AddMapTime(level, new ThousandthsTimeFormatter().Format(TimeSpan.FromMilliseconds(time + _levelRestartTime)));
-            _totalGameTime += time;
-            _levelRestartTime = 0;
             _timer.Split();
         }
 
@@ -118,19 +65,23 @@ namespace LiveSplit.GoLSplit
 
         void gameMemory_OnFirstLevelLoading(object sender, EventArgs e)
         {
-            _totalGameTime = 0;
-            _levelRestartTime = 0;
             _timer.Reset();
-            _mapTimesForm.Reset();
             _completedLevels.Clear();
         }
 
-        void gameMemory_OnLevelRestarted(object sender, uint time)
+        void gameMemory_OnLoadStart(object sender, EventArgs e)
         {
-            _totalGameTime += time;
-            _levelRestartTime += time;
+            _timer.CurrentState.IsGameTimePaused = true;
         }
 
+        void gameMemory_OnLoadFinish(object sender, EventArgs e)
+        {
+            _timer.CurrentState.IsGameTimePaused = false;
+        }
+
+        public void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode) { }
+        public void DrawVertical(Graphics g, LiveSplitState state, float width, Region region) { }
+        public void DrawHorizontal(Graphics g, LiveSplitState state, float height, Region region) { }
         public XmlNode GetSettings(XmlDocument document) { return document.CreateElement("Settings"); }
         public Control GetSettingsControl(LayoutMode mode) { return null; }
         public void SetSettings(XmlNode settings) { }
@@ -143,21 +94,5 @@ namespace LiveSplit.GoLSplit
         public float PaddingRight    { get { return this.InternalComponent.PaddingRight; } }
         public float PaddingTop      { get { return this.InternalComponent.PaddingTop; } }
         public float PaddingBottom   { get { return this.InternalComponent.PaddingBottom; } }
-    }
-
-    class ThousandthsTimeFormatter : ITimeFormatter
-    {
-        public string Format(TimeSpan? time)
-        {
-            if (!time.HasValue)
-                return "0.000";
-
-            if (time.Value.TotalDays >= 1.0)
-                return (int)time.Value.TotalHours + time.Value.ToString("\\:mm\\:ss\\.fff", CultureInfo.InvariantCulture);
-            if (time.Value.TotalHours >= 1.0)
-                return time.Value.ToString("h\\:mm\\:ss\\.fff", CultureInfo.InvariantCulture);
-            else
-                return time.Value.ToString("m\\:ss\\.fff", CultureInfo.InvariantCulture);
-        }
     }
 }

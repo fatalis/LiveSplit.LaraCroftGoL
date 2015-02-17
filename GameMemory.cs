@@ -12,51 +12,34 @@ namespace LiveSplit.GoLSplit
 {
     class GameMemory
     {
-        public delegate void LevelFinishedEventHandler(object sender, string level, uint time);
-        public delegate void LevelRestartedEventHandler(object sender, uint time);
+        public delegate void LevelFinishedEventHandler(object sender, string level);
         public event LevelFinishedEventHandler OnLevelFinished;
-        public event LevelRestartedEventHandler OnLevelRestarted;
         public event EventHandler OnFirstLevelStarted;
         public event EventHandler OnFirstLevelLoading;
+        public event EventHandler OnLoadStart;
+        public event EventHandler OnLoadFinish;
 
         private Task _thread;
         private CancellationTokenSource _cancelSource;
         private SynchronizationContext _uiThread;
 
         private DeepPointer _currentMapPtr;
-        private DeepPointer _gameTimePtr;
         private DeepPointer _isOnEndScreenPtr;
-
-        private uint _prevGameTime;
-        private bool _levelLoaded;
-
-        private Dictionary<string, string> _zoneToLevel = new Dictionary<string, string> {
-            { "alc_1_",                  "Temple of Light" },
-            { "alc_2_",                  "Temple Grounds" },
-            { "alc_3_",                  "Spider Tomb" },
-            { "alc_bossfight_trex",      "The Summoning" },
-            { "alc_4_",                  "Forgotten Gate" },
-            { "alc_6_",                  "Toxic Swamp" },
-            { "alc_5_lt_arrow_shrine",   "The Jaws of Death" }, // special case
-            { "alc_5_",                  "Flooded Passage" },
-            { "alc_10_",                 "Twisting Bridge" },
-            { "alc_11_",                 "Fiery Depths" },
-            { "alc_bossfight_lava_trex", "Belly of the Beast" },
-            { "alc_13_",                 "Stronghold Passage" },
-            { "alc_14_",                 "The Mirror's Wake" },
-            { "alc_bossfight_xolotl",    "Xolotl's Stronghold" }
-        };
-
-        public uint GameTime
-        {
-            get { return _levelLoaded ? _prevGameTime : 0; }
-        }
+        private DeepPointer _spLoadingPtr;
+        private DeepPointer _mpLoadingPtr;
+        private DeepPointer _mpLoading2Ptr;
+        private DeepPointer _numPlayersPtr;
+        private DeepPointer _gameTimePtr;
 
         public GameMemory()
         {
             _currentMapPtr = new DeepPointer(0xCA8E1C);
-            _gameTimePtr = new DeepPointer(0xCA8EE4);
             _isOnEndScreenPtr = new DeepPointer(0x7C0DD0);
+            _spLoadingPtr = new DeepPointer(0xA84CAC);
+            _mpLoadingPtr = new DeepPointer(0xCEB5F8);
+            _mpLoading2Ptr = new DeepPointer(0xCA8D0B);
+            _numPlayersPtr = new DeepPointer(0xD7F8EC, 0x10);
+            _gameTimePtr = new DeepPointer(0xCA8EE4);
         }
 
         public void StartReading()
@@ -86,15 +69,15 @@ namespace LiveSplit.GoLSplit
             {
                 try
                 {
-                    Process gameProcess = null;
+                    Process game = null;
 
                     // wait for game process
-                    while (gameProcess == null)
+                    while (game == null)
                     {
-                        gameProcess = Process.GetProcesses()
+                        game = Process.GetProcesses()
                             .FirstOrDefault(p => p.ProcessName.ToLower() == "lcgol" && !p.HasExited);
 
-                        if (gameProcess != null)
+                        if (game != null)
                             break;
 
                         Thread.Sleep(250);
@@ -104,65 +87,90 @@ namespace LiveSplit.GoLSplit
                     }
 
                     bool prevIsOnEndScreen = false;
-                    while (!gameProcess.HasExited)
+                    byte prevMpLoading = 0;
+                    byte prevMpLoading2 = 0;
+                    byte prevSpLoading = 0;
+                    uint prevGameTime = 0;
+                    bool first = true;
+                    while (!game.HasExited)
                     {
                         string currentMap;
-                        _currentMapPtr.Deref(gameProcess, out currentMap, 128);
+                        _currentMapPtr.Deref(game, out currentMap, 128);
 
                         bool isOnEndScreen;
-                        _isOnEndScreenPtr.Deref(gameProcess, out isOnEndScreen);
+                        _isOnEndScreenPtr.Deref(game, out isOnEndScreen);
+
+                        byte numPlayers;
+                        _numPlayersPtr.Deref(game, out numPlayers);
+
+                        byte spLoading;
+                        _spLoadingPtr.Deref(game, out spLoading);
+
+                        byte mpLoading;
+                        _mpLoadingPtr.Deref(game, out mpLoading);
+
+                        byte mpLoading2;
+                        _mpLoading2Ptr.Deref(game, out mpLoading2);
 
                         uint gameTime;
-                        _gameTimePtr.Deref(gameProcess, out gameTime);
+                        _gameTimePtr.Deref(game, out gameTime);
 
-                        if (isOnEndScreen != prevIsOnEndScreen && isOnEndScreen)
+                        if (first)
                         {
-                            _levelLoaded = false;
+                            first = false;
+                            goto next;
+                        }
 
-                            string level = currentMap;
-                            foreach (string zone in _zoneToLevel.Keys)
-                            {
-                                if (level.StartsWith(zone))
-                                    level = _zoneToLevel[zone];
-                            }
-
-                            _uiThread.Send(s => {
+                        if (isOnEndScreen && !prevIsOnEndScreen)
+                        {
+                            _uiThread.Post(s => {
                                 if (this.OnLevelFinished != null)
-                                    this.OnLevelFinished(this, level, gameTime);
+                                    this.OnLevelFinished(this, currentMap);
                             }, null);
                         }
-                        else if (gameTime == 0 && _prevGameTime > 0)
+                        else if ((numPlayers == 1 && spLoading == 1 && prevSpLoading != 1 && !isOnEndScreen)
+                            || (numPlayers > 1 && mpLoading == 2 && prevMpLoading == 7) // new game
+                            || (numPlayers > 1 && mpLoading2 == 1 && prevMpLoading2 == 0) // death
+                            || (numPlayers > 1 && mpLoading == 2 && prevMpLoading == 1)) // change level
                         {
-                            if (currentMap == "alc_1_it_beginning")
-                            {
-                                _uiThread.Send(s => {
-                                    if (this.OnFirstLevelLoading != null)
-                                        this.OnFirstLevelLoading(this, EventArgs.Empty);
-                                }, null);
-                            }
-                            else
-                            {
-                                _uiThread.Send(s => {
-                                    if (this.OnLevelRestarted != null)
-                                        this.OnLevelRestarted(this, _prevGameTime);
-                                }, null);
-                            }
+                            _uiThread.Post(s => {
+                                if (this.OnLoadStart != null)
+                                    this.OnLoadStart(this, EventArgs.Empty);
+                            }, null);
                         }
-                        else if (_prevGameTime == 0 && gameTime > 0)
+                        else if ((numPlayers == 1 && spLoading != 1 && prevSpLoading == 1 && !isOnEndScreen)
+                            || (numPlayers > 1 && mpLoading == 1 && prevMpLoading == 3))
                         {
-                            _levelLoaded = true;
-
+                            _uiThread.Post(s => {
+                                if (this.OnLoadFinish != null)
+                                    this.OnLoadFinish(this, EventArgs.Empty);
+                            }, null);
+                        }
+                        
+                        if (gameTime == 0 && prevGameTime > 0 && currentMap == "alc_1_it_beginning")
+                        {
+                            _uiThread.Post(s => {
+                                if (this.OnFirstLevelLoading != null)
+                                    this.OnFirstLevelLoading(this, EventArgs.Empty);
+                            }, null);
+                        }
+                        else if (gameTime > 0 && prevGameTime == 0 && currentMap == "alc_1_it_beginning")
+                        {
                             if (currentMap == "alc_1_it_beginning")
                             {
-                                _uiThread.Send(s => {
+                                _uiThread.Post(s => {
                                     if (this.OnFirstLevelStarted != null)
                                         this.OnFirstLevelStarted(this, EventArgs.Empty);
                                 }, null);
                             }
                         }
-
-                        _prevGameTime = gameTime;
+                        
+                    next:
                         prevIsOnEndScreen = isOnEndScreen;
+                        prevSpLoading = spLoading;
+                        prevMpLoading = mpLoading;
+                        prevMpLoading2 = mpLoading2;
+                        prevGameTime = gameTime;
 
                         Thread.Sleep(15);
 

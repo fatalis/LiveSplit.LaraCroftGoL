@@ -39,6 +39,7 @@ namespace LiveSplit.GoLSplit
             _gameMemory.OnLevelFinished += gameMemory_OnLevelFinished;
             _gameMemory.OnLoadStart += gameMemory_OnLoadStart;
             _gameMemory.OnLoadFinish += gameMemory_OnLoadFinish;
+            _gameMemory.OnInvalidSettingsDetected += gameMemory_OnInvalidSettingsDetected;
             _gameMemory.StartReading();
         }
 
@@ -77,6 +78,17 @@ namespace LiveSplit.GoLSplit
         void gameMemory_OnLoadFinish(object sender, EventArgs e)
         {
             _timer.CurrentState.IsGameTimePaused = false;
+        }
+
+        void gameMemory_OnInvalidSettingsDetected(object sender, EventArgs e)
+        {
+            if (_timer.CurrentState.CurrentPhase == TimerPhase.Running)
+            {
+                MessageBox.Show(
+                    "Invalid settings detected. VSync must be ON and refresh rate must be set to 60hz. Stopping timer.",
+                    "LiveSplit.LaraCroftGoL", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                _timer.Reset(false);
+            }
         }
 
         public void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode) { }

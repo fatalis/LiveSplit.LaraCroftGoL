@@ -18,6 +18,7 @@ namespace LiveSplit.GoLSplit
         public event EventHandler OnFirstLevelLoading;
         public event EventHandler OnLoadStart;
         public event EventHandler OnLoadFinish;
+        public event EventHandler OnInvalidSettingsDetected;
 
         private Task _thread;
         private CancellationTokenSource _cancelSource;
@@ -30,6 +31,11 @@ namespace LiveSplit.GoLSplit
         private DeepPointer _mpLoading2Ptr;
         private DeepPointer _numPlayersPtr;
         private DeepPointer _gameTimePtr;
+        private DeepPointer _refreshRatePtr;
+        private DeepPointer _vsyncPtr;
+
+
+        private const int D3DPRESENT_DONOTWAIT = 0x00000001;
 
         public GameMemory()
         {
@@ -40,6 +46,8 @@ namespace LiveSplit.GoLSplit
             _mpLoading2Ptr = new DeepPointer(0xCA8D0B);
             _numPlayersPtr = new DeepPointer(0xD7F8EC, 0x10);
             _gameTimePtr = new DeepPointer(0xCA8EE4);
+            _refreshRatePtr = new DeepPointer(0x884554, 0x228); // cdc::PCDeviceManager->D3DPRESENT_PARAMETERS
+            _vsyncPtr = new DeepPointer(0x884554, 0x22C);
         }
 
         public void StartReading()
@@ -115,6 +123,12 @@ namespace LiveSplit.GoLSplit
                         uint gameTime;
                         _gameTimePtr.Deref(game, out gameTime);
 
+                        int refreshRate;
+                        _refreshRatePtr.Deref(game, out refreshRate);
+
+                        int vsyncPresentationInterval;
+                        _vsyncPtr.Deref(game, out vsyncPresentationInterval);
+
                         if (first)
                         {
                             first = false;
@@ -161,6 +175,18 @@ namespace LiveSplit.GoLSplit
                                 _uiThread.Post(s => {
                                     if (this.OnFirstLevelStarted != null)
                                         this.OnFirstLevelStarted(this, EventArgs.Empty);
+                                }, null);
+                            }
+                        }
+
+                        if (vsyncPresentationInterval != D3DPRESENT_DONOTWAIT ||
+                            (refreshRate != 0 && refreshRate != 59 && refreshRate != 60))
+                        {
+                            if (gameTime > 0) // avoid false detection on game startup
+                            {
+                                _uiThread.Send(s => {
+                                    if (this.OnInvalidSettingsDetected != null)
+                                        this.OnInvalidSettingsDetected(this, EventArgs.Empty);
                                 }, null);
                             }
                         }

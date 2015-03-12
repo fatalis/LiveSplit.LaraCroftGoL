@@ -2,9 +2,10 @@
 
 Features:
 
+Removes loading times.
 Automatically reset/start on the first level.
 Automatically split when finishing a level.
-Removes loading times.
+Sound notification when you get an IGT IL PB.
 
 Requirements:
 

@@ -19,6 +19,7 @@ namespace LiveSplit.GoLSplit
         public event EventHandler OnLoadStart;
         public event EventHandler OnLoadFinish;
         public event EventHandler OnInvalidSettingsDetected;
+        public event PersonalBestILDB.NewPersonalBestEventArgs OnNewILPersonalBest;
 
         private Task _thread;
         private CancellationTokenSource _cancelSource;
@@ -34,7 +35,8 @@ namespace LiveSplit.GoLSplit
         private DeepPointer _refreshRatePtr;
         private DeepPointer _vsyncPtr;
 
-
+        private PersonalBestILDB _pbDb;
+        
         private const int D3DPRESENT_DONOTWAIT = 0x00000001;
 
         public GameMemory()
@@ -48,6 +50,9 @@ namespace LiveSplit.GoLSplit
             _gameTimePtr = new DeepPointer(0xCA8EE4);
             _refreshRatePtr = new DeepPointer(0x884554, 0x228); // cdc::PCDeviceManager->D3DPRESENT_PARAMETERS
             _vsyncPtr = new DeepPointer(0x884554, 0x22C);
+
+            _pbDb = new PersonalBestILDB();
+            _pbDb.OnNewILPersonalBest += pbDb_OnNewILPersonalBest;
         }
 
         public void StartReading()
@@ -129,6 +134,8 @@ namespace LiveSplit.GoLSplit
                         int vsyncPresentationInterval;
                         _vsyncPtr.Deref(game, out vsyncPresentationInterval);
 
+                        _pbDb.Update(game);
+
                         if (first)
                         {
                             first = false;
@@ -170,19 +177,16 @@ namespace LiveSplit.GoLSplit
                         }
                         else if (gameTime > 0 && prevGameTime == 0 && currentMap == "alc_1_it_beginning")
                         {
-                            if (currentMap == "alc_1_it_beginning")
-                            {
-                                _uiThread.Post(s => {
-                                    if (this.OnFirstLevelStarted != null)
-                                        this.OnFirstLevelStarted(this, EventArgs.Empty);
-                                }, null);
-                            }
+                            _uiThread.Post(s => {
+                                if (this.OnFirstLevelStarted != null)
+                                    this.OnFirstLevelStarted(this, EventArgs.Empty);
+                            }, null);
                         }
 
                         if (vsyncPresentationInterval != D3DPRESENT_DONOTWAIT ||
-                            (refreshRate != 0 && refreshRate != 59 && refreshRate != 60))
+                            (refreshRate != 59 && refreshRate != 60))
                         {
-                            if (gameTime > 0) // avoid false detection on game startup
+                            if (gameTime > 0 && refreshRate != 0) // avoid false detection on game startup and zeroed memory on exit
                             {
                                 _uiThread.Send(s => {
                                     if (this.OnInvalidSettingsDetected != null)
@@ -211,10 +215,23 @@ namespace LiveSplit.GoLSplit
                 }
             }
         }
+
+        void pbDb_OnNewILPersonalBest(object sender, string level, TimeSpan time, TimeSpan oldTime)
+        {
+            if (this.OnNewILPersonalBest != null)
+            {
+                _uiThread.Post(s => {
+                    if (this.OnNewILPersonalBest != null)
+                        this.OnNewILPersonalBest(this, level, time, oldTime);
+                }, null);
+            }
+        }
     }
 
     class DeepPointer
     {
+        public string Name { get; set; }
+
         private List<int> _offsets;
         private int _base;
 
@@ -357,6 +374,71 @@ namespace LiveSplit.GoLSplit
             }
 
             return true;
+        }
+    }
+
+    class PersonalBestILDB
+    {
+        public delegate void NewPersonalBestEventArgs(object sender, string level, TimeSpan time, TimeSpan oldTime);
+        public event NewPersonalBestEventArgs OnNewILPersonalBest;
+
+        private Dictionary<DeepPointer, uint> _db;
+
+        private const int PR_TABLE_START = 0xD821A0;
+        private const int STRUCT_SIZE = 0xF0;
+
+        private string[] _levels = {
+            "Temple Grounds",
+            "Spider Tomb",
+            "The Summoning",
+            "Toxic Swamp",
+            "Flooded Passage",
+            "Temple of Light",
+            "The Jaws of Death",
+            "Forgotten Gate",
+            "Twisting Bridge",
+            "Belly of the Beast",
+            "Xolotl's Stronghold",
+            "The Mirror's Wake",
+            "Fiery Depths",
+            "Stronghold Passage"
+        };
+
+        public PersonalBestILDB()
+        {
+            _db = new Dictionary<DeepPointer, uint>();
+
+            for (int i = 0; i < _levels.Length; i++)
+            {
+                int addr = PR_TABLE_START + (STRUCT_SIZE * i);
+                var solo = new DeepPointer(addr) { Name= "Solo - " + _levels[i] };
+                var coop = new DeepPointer(addr + 8) { Name = "Coop - " + _levels[i] };
+                _db.Add(solo, 0);
+                _db.Add(coop, 0);
+            }
+        }
+
+        public void Update(Process game)
+        {
+            var keys = new List<DeepPointer>(_db.Keys);
+            foreach (DeepPointer ptr in keys)
+            {
+                uint dbTime = _db[ptr];
+
+                uint time;
+                ptr.Deref(game, out time);
+
+                if (time != dbTime)
+                {
+                    _db[ptr] = time;
+
+                    if (time < dbTime && time > 0)
+                    {
+                        if (this.OnNewILPersonalBest != null)
+                            this.OnNewILPersonalBest(this, ptr.Name, TimeSpan.FromMilliseconds(time), TimeSpan.FromMilliseconds(dbTime));
+                    }
+                }
+            }
         }
     }
 

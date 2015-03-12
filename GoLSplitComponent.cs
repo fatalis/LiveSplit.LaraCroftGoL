@@ -1,4 +1,6 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
+using System.Drawing;
+using System.Media;
 using LiveSplit.Model;
 using LiveSplit.TimeFormatters;
 using LiveSplit.UI.Components;
@@ -22,16 +24,16 @@ namespace LiveSplit.GoLSplit
 
         private TimerModel _timer;
         private GameMemory _gameMemory;
-        private List<string> _completedLevels;
+        private LogForm _logForm;
+        private DateTime _lastSplit;
 
         public GoLSplitComponent(LiveSplitState state)
         {
-            this.ContextMenuControls = new Dictionary<String, Action>();
-
             this.InternalComponent = new InfoTimeComponent(null, null, new RegularTimeFormatter(TimeAccuracy.Hundredths));
 
-            _completedLevels = new List<string>();
             _timer = new TimerModel { CurrentState = state };
+            _logForm = new LogForm();
+            _lastSplit = DateTime.MinValue;
 
             _gameMemory = new GameMemory();
             _gameMemory.OnFirstLevelLoading += gameMemory_OnFirstLevelLoading;
@@ -40,22 +42,28 @@ namespace LiveSplit.GoLSplit
             _gameMemory.OnLoadStart += gameMemory_OnLoadStart;
             _gameMemory.OnLoadFinish += gameMemory_OnLoadFinish;
             _gameMemory.OnInvalidSettingsDetected += gameMemory_OnInvalidSettingsDetected;
+            _gameMemory.OnNewILPersonalBest += gameMemory_OnNewILPersonalBest;
             _gameMemory.StartReading();
+
+            this.ContextMenuControls = new Dictionary<String, Action>();
+            this.ContextMenuControls.Add("Lara Croft: GoL - IL PB Log", () => _logForm.Show());
         }
 
         public void Dispose()
         {
             if (_gameMemory != null)
                 _gameMemory.Stop();
+            if (_logForm != null)
+                _logForm.Dispose();
         }
 
         void gameMemory_OnLevelFinished(object sender, string level)
         {
             // hack to hopefully fix an issue one person has where this is called many times on the level end screen
-            if (_completedLevels.Contains(level))
+            if (DateTime.Now - _lastSplit < TimeSpan.FromSeconds(10))
                 return;
+            _lastSplit = DateTime.Now;
 
-            _completedLevels.Add(level);
             _timer.Split();
         }
 
@@ -67,7 +75,6 @@ namespace LiveSplit.GoLSplit
         void gameMemory_OnFirstLevelLoading(object sender, EventArgs e)
         {
             _timer.Reset();
-            _completedLevels.Clear();
         }
 
         void gameMemory_OnLoadStart(object sender, EventArgs e)
@@ -88,6 +95,21 @@ namespace LiveSplit.GoLSplit
                     "Invalid settings detected. VSync must be ON and refresh rate must be set to 60hz. Stopping timer.",
                     "LiveSplit.LaraCroftGoL", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 _timer.Reset(false);
+            }
+        }
+
+        void gameMemory_OnNewILPersonalBest(object sender, string level, TimeSpan time, TimeSpan oldTime)
+        {
+            TimeSpan improve = oldTime - time;
+            _logForm.AddMessage(String.Format("{0}: {1:m\\:ss\\.fff} - {2:m\\:ss\\.fff} improvement", level, time, improve));
+
+            try
+            {
+                new SoundPlayer(Properties.Resources.UI_reward_b_05_left).Play();
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.ToString());
             }
         }
 

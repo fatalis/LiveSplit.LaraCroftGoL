@@ -1,8 +1,6 @@
 ﻿using System.Diagnostics;
-using System.Drawing;
 using System.Media;
 using LiveSplit.Model;
-using LiveSplit.TimeFormatters;
 using LiveSplit.UI.Components;
 using LiveSplit.UI;
 using System;
@@ -12,15 +10,12 @@ using System.Windows.Forms;
 
 namespace LiveSplit.GoLSplit
 {
-    class GoLSplitComponent : IComponent
+    class GoLSplitComponent : LogicComponent
     {
-        public string ComponentName
+        public override string ComponentName
         {
             get { return "Lara Croft: GoL"; }
         }
-
-        public IDictionary<string, Action> ContextMenuControls { get; protected set; }
-        protected InfoTimeComponent InternalComponent { get; set; }
 
         private TimerModel _timer;
         private GameMemory _gameMemory;
@@ -29,9 +24,9 @@ namespace LiveSplit.GoLSplit
 
         public GoLSplitComponent(LiveSplitState state)
         {
-            this.InternalComponent = new InfoTimeComponent(null, null, new RegularTimeFormatter(TimeAccuracy.Hundredths));
-
             _timer = new TimerModel { CurrentState = state };
+            _timer.CurrentState.OnStart += timer_OnStart;
+
             _logForm = new LogForm();
             _lastSplit = DateTime.MinValue;
 
@@ -49,12 +44,19 @@ namespace LiveSplit.GoLSplit
             this.ContextMenuControls.Add("Lara Croft: GoL - IL PB Log", () => _logForm.Show());
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
+            _timer.CurrentState.OnStart -= timer_OnStart;
+
             if (_gameMemory != null)
                 _gameMemory.Stop();
             if (_logForm != null)
                 _logForm.Dispose();
+        }
+
+        void timer_OnStart(object sender, EventArgs e)
+        {
+            _timer.InitializeGameTime();
         }
 
         void gameMemory_OnLevelFinished(object sender, string level)
@@ -113,20 +115,9 @@ namespace LiveSplit.GoLSplit
             }
         }
 
-        public void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode) { }
-        public void DrawVertical(Graphics g, LiveSplitState state, float width, Region region) { }
-        public void DrawHorizontal(Graphics g, LiveSplitState state, float height, Region region) { }
-        public XmlNode GetSettings(XmlDocument document) { return document.CreateElement("Settings"); }
-        public Control GetSettingsControl(LayoutMode mode) { return null; }
-        public void SetSettings(XmlNode settings) { }
-        public void RenameComparison(string oldName, string newName) { }
-        public float VerticalHeight  { get { return this.InternalComponent.VerticalHeight; } }
-        public float MinimumWidth    { get { return this.InternalComponent.MinimumWidth; } }
-        public float HorizontalWidth { get { return this.InternalComponent.HorizontalWidth; } }
-        public float MinimumHeight   { get { return this.InternalComponent.MinimumHeight; } }
-        public float PaddingLeft     { get { return this.InternalComponent.PaddingLeft; } }
-        public float PaddingRight    { get { return this.InternalComponent.PaddingRight; } }
-        public float PaddingTop      { get { return this.InternalComponent.PaddingTop; } }
-        public float PaddingBottom   { get { return this.InternalComponent.PaddingBottom; } }
+        public override void Update(IInvalidator invalidator, LiveSplitState state, float width, float height, LayoutMode mode) { }
+        public override XmlNode GetSettings(XmlDocument document) { return document.CreateElement("Settings"); }
+        public override Control GetSettingsControl(LayoutMode mode) { return null; }
+        public override void SetSettings(XmlNode settings) { }
     }
 }

@@ -126,43 +126,28 @@ namespace LiveSplit.GoLSplit
 
                         if (isOnEndScreen && !prevIsOnEndScreen)
                         {
-                            _uiThread.Post(s => {
-                                if (this.OnLevelFinished != null)
-                                    this.OnLevelFinished(this, currentMap);
-                            }, null);
+                            _uiThread.Post(s => this.OnLevelFinished?.Invoke(this, currentMap), null);
                         }
                         else if ((numPlayers == 1 && spLoading == 1 && prevSpLoading != 1 && !isOnEndScreen)
                             || (numPlayers > 1 && mpLoading == 2 && prevMpLoading == 7) // new game
                             || (numPlayers > 1 && mpLoading2 == 1 && prevMpLoading2 == 0) // death
                             || (numPlayers > 1 && mpLoading == 2 && prevMpLoading == 1)) // change level
                         {
-                            _uiThread.Post(s => {
-                                if (this.OnLoadStart != null)
-                                    this.OnLoadStart(this, EventArgs.Empty);
-                            }, null);
+                            _uiThread.Post(s => this.OnLoadStart?.Invoke(this, EventArgs.Empty), null);
                         }
                         else if ((numPlayers == 1 && spLoading != 1 && prevSpLoading == 1 && !isOnEndScreen)
                             || (numPlayers > 1 && mpLoading == 1 && prevMpLoading == 3))
                         {
-                            _uiThread.Post(s => {
-                                if (this.OnLoadFinish != null)
-                                    this.OnLoadFinish(this, EventArgs.Empty);
-                            }, null);
+                            _uiThread.Post(s => this.OnLoadFinish?.Invoke(this, EventArgs.Empty), null);
                         }
                         
                         if (gameTime == 0 && prevGameTime > 0 && currentMap == "alc_1_it_beginning")
                         {
-                            _uiThread.Post(s => {
-                                if (this.OnFirstLevelLoading != null)
-                                    this.OnFirstLevelLoading(this, EventArgs.Empty);
-                            }, null);
+                            _uiThread.Post(s => this.OnFirstLevelLoading?.Invoke(this, EventArgs.Empty), null);
                         }
                         else if (gameTime > 0 && prevGameTime == 0 && currentMap == "alc_1_it_beginning")
                         {
-                            _uiThread.Post(s => {
-                                if (this.OnFirstLevelStarted != null)
-                                    this.OnFirstLevelStarted(this, EventArgs.Empty);
-                            }, null);
+                            _uiThread.Post(s => this.OnFirstLevelStarted?.Invoke(this, EventArgs.Empty), null);
                         }
 
                         if (vsyncPresentationInterval != D3DPRESENT_DONOTWAIT ||
@@ -170,10 +155,7 @@ namespace LiveSplit.GoLSplit
                         {
                             if (gameTime > 0 && refreshRate != 0) // avoid false detection on game startup and zeroed memory on exit
                             {
-                                _uiThread.Send(s => {
-                                    if (this.OnInvalidSettingsDetected != null)
-                                        this.OnInvalidSettingsDetected(this, EventArgs.Empty);
-                                }, null);
+                                _uiThread.Send(s => { this.OnInvalidSettingsDetected?.Invoke(this, EventArgs.Empty); }, null);
                             }
                         }
                         
@@ -202,10 +184,7 @@ namespace LiveSplit.GoLSplit
         {
             if (this.OnNewILPersonalBest != null)
             {
-                _uiThread.Post(s => {
-                    if (this.OnNewILPersonalBest != null)
-                        this.OnNewILPersonalBest(this, level, time, oldTime);
-                }, null);
+                _uiThread.Post(s => this.OnNewILPersonalBest?.Invoke(this, level, time, oldTime), null);
             }
         }
     }
@@ -267,8 +246,7 @@ namespace LiveSplit.GoLSplit
 
                     if (time < dbTime && time > 0)
                     {
-                        if (this.OnNewILPersonalBest != null)
-                            this.OnNewILPersonalBest(this, ptr.Name, TimeSpan.FromMilliseconds(time), TimeSpan.FromMilliseconds(dbTime));
+                        this.OnNewILPersonalBest?.Invoke(this, ptr.Name, TimeSpan.FromMilliseconds(time), TimeSpan.FromMilliseconds(dbTime));
                     }
                 }
             }
@@ -278,7 +256,7 @@ namespace LiveSplit.GoLSplit
         {
             public string Name { get; set; }
             public NamedDeepPointer(int base_, params int[] offsets) : base(base_, offsets) { }
-            public NamedDeepPointer(string module, int base_, params int[] offsets) : base(module, base_, offsets) { }
+            //public NamedDeepPointer(string module, int base_, params int[] offsets) : base(module, base_, offsets) { }
         }
     }
 
@@ -288,9 +266,9 @@ namespace LiveSplit.GoLSplit
         public float Y { get; set; }
         public float Z { get; set; }
 
-        public int IX { get { return (int)this.X; } }
-        public int IY { get { return (int)this.Y; } }
-        public int IZ { get { return (int)this.Z; } }
+        public int IX => (int)this.X;
+        public int IY => (int)this.Y;
+        public int IZ => (int)this.Z;
 
         public Vector3f() { }
 

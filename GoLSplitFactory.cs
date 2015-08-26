@@ -10,44 +10,18 @@ namespace LiveSplit.GoLSplit
 {
     public class GoLSplitFactory : IComponentFactory
     {
-        public string ComponentName
-        {
-            get { return "Lara Croft: GoL"; }
-        }
-
-        public string Description
-        {
-            get { return "Game Time / Auto-splitting for Lara Croft and the Guardian of Light."; }
-        }
-
-        public ComponentCategory Category
-        {
-            get { return ComponentCategory.Control; }
-        }
+        public string ComponentName => "Lara Croft: GoL";
+        public string Description => "Game Time / Auto-splitting for Lara Croft and the Guardian of Light.";
+        public ComponentCategory Category => ComponentCategory.Control;
 
         public IComponent Create(LiveSplitState state)
         {
             return new GoLSplitComponent(state);
         }
 
-        public string UpdateName
-        {
-            get { return this.ComponentName; }
-        }
-
-        public string UpdateURL
-        {
-            get { return "http://fatalis.pw/livesplit/update/"; }
-        }
-
-        public Version Version
-        {
-            get { return Assembly.GetExecutingAssembly().GetName().Version; }
-        }
-
-        public string XMLURL
-        {
-            get { return this.UpdateURL + "Components/update.LiveSplit.GoLSplit.xml"; }
-        }
+        public string UpdateName => this.ComponentName;
+        public string UpdateURL => "http://fatalis.pw/livesplit/update/";
+        public Version Version => Assembly.GetExecutingAssembly().GetName().Version;
+        public string XMLURL => this.UpdateURL + "Components/update.LiveSplit.GoLSplit.xml";
     }
 }

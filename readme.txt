@@ -10,7 +10,7 @@ Sound notification when you get an IGT IL PB.
 Requirements:
 
 Lara Croft and the Guardian of Light v1.03 (Latest)
-LiveSplit 1.4+
+LiveSplit 1.6+
 
 Install:
 

@@ -12,10 +12,7 @@ namespace LiveSplit.GoLSplit
 {
     class GoLSplitComponent : LogicComponent
     {
-        public override string ComponentName
-        {
-            get { return "Lara Croft: GoL"; }
-        }
+        public override string ComponentName => "Lara Croft: GoL";
 
         private TimerModel _timer;
         private GameMemory _gameMemory;
@@ -47,11 +44,8 @@ namespace LiveSplit.GoLSplit
         public override void Dispose()
         {
             _timer.CurrentState.OnStart -= timer_OnStart;
-
-            if (_gameMemory != null)
-                _gameMemory.Stop();
-            if (_logForm != null)
-                _logForm.Dispose();
+            _gameMemory?.Stop();
+            _logForm?.Dispose();
         }
 
         void timer_OnStart(object sender, EventArgs e)
@@ -103,7 +97,7 @@ namespace LiveSplit.GoLSplit
         void gameMemory_OnNewILPersonalBest(object sender, string level, TimeSpan time, TimeSpan oldTime)
         {
             TimeSpan improve = oldTime - time;
-            _logForm.AddMessage(String.Format("{0}: {1:m\\:ss\\.fff} - {2:m\\:ss\\.fff} improvement", level, time, improve));
+            _logForm.AddMessage($"{level}: {time:m\\:ss\\.fff} - {improve:m\\:ss\\.fff} improvement");
 
             try
             {

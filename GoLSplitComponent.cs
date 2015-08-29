@@ -18,11 +18,15 @@ namespace LiveSplit.GoLSplit
         private GameMemory _gameMemory;
         private LogForm _logForm;
         private DateTime _lastSplit;
+        private Timer _updateTimer;
 
         public GoLSplitComponent(LiveSplitState state)
         {
             _timer = new TimerModel { CurrentState = state };
             _timer.CurrentState.OnStart += timer_OnStart;
+
+            _updateTimer = new Timer() { Interval = 15, Enabled = true };
+            _updateTimer.Tick += updateTimer_Tick;
 
             _logForm = new LogForm();
             _lastSplit = DateTime.MinValue;
@@ -35,7 +39,6 @@ namespace LiveSplit.GoLSplit
             _gameMemory.OnLoadFinish += gameMemory_OnLoadFinish;
             _gameMemory.OnInvalidSettingsDetected += gameMemory_OnInvalidSettingsDetected;
             _gameMemory.OnNewILPersonalBest += gameMemory_OnNewILPersonalBest;
-            _gameMemory.StartReading();
 
             this.ContextMenuControls = new Dictionary<String, Action>();
             this.ContextMenuControls.Add("Lara Croft: GoL - IL PB Log", () => _logForm.Show());
@@ -44,8 +47,19 @@ namespace LiveSplit.GoLSplit
         public override void Dispose()
         {
             _timer.CurrentState.OnStart -= timer_OnStart;
-            _gameMemory?.Stop();
             _logForm?.Dispose();
+        }
+
+        void updateTimer_Tick(object sender, EventArgs eventArgs)
+        {
+            try
+            {
+                _gameMemory.Update();
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.ToString());
+            }
         }
 
         void timer_OnStart(object sender, EventArgs e)

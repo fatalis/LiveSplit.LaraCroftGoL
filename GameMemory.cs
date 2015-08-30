@@ -104,7 +104,6 @@ namespace LiveSplit.GoLSplit
             if (game == null)
                 return false;
 
-            _data.ResetAll();
             _process = game;
             return true;
         }

@@ -21,11 +21,10 @@ namespace LiveSplit.GoLSplit
 
         public GameData()
         {
-            this.AddRange(new MemoryWatcher[] {
-                this.CurrentMap, this.IsOnEndScreen, this.NumPlayers, this.SpLoading,
-                this.MpLoading, this.MpLoading2, this.GameTime, this.RefreshRate,
-                this.VSyncPresentationInterval
-            });
+            this.AddRange(this.GetType().GetProperties()
+                .Where(p => !p.GetIndexParameters().Any())
+                .Select(p => p.GetValue(this, null) as MemoryWatcher)
+                .Where(p => p != null));
         }
     }
 

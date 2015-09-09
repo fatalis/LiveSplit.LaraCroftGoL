@@ -68,7 +68,7 @@ namespace LiveSplit.GoLSplit
 
             int numPlayers = _data.NumPlayers.Current;
 
-            if (_data.IsOnEndScreen.Changed)
+            if (_data.IsOnEndScreen.Changed && _data.IsOnEndScreen.Current)
                 this.OnLevelFinished?.Invoke(this, _data.CurrentMap.Current);
             else if ((numPlayers == 1 && _data.SpLoading.Current == 1 && _data.SpLoading.Old != 1 && !_data.IsOnEndScreen.Current)
                 || (numPlayers > 1 && _data.MpLoading.Current == 2 && _data.MpLoading.Old == 7)   // new game

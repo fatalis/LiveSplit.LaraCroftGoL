@@ -48,6 +48,7 @@ namespace LiveSplit.GoLSplit
         {
             _timer.CurrentState.OnStart -= timer_OnStart;
             _logForm?.Dispose();
+            _updateTimer?.Dispose();
         }
 
         void updateTimer_Tick(object sender, EventArgs eventArgs)
